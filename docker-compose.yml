@@ -1,0 +1,34 @@
+services:
+  blockchain:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: secure_vault_blockchain
+    command: ["npx", "hardhat", "node", "--hostname", "0.0.0.0"]
+    ports:
+      - "8545:8545"
+    healthcheck:
+      test:
+        - "CMD"
+        - "node"
+        - "-e"
+        - "fetch('http://127.0.0.1:8545', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',method:'eth_blockNumber',params:[],id:1})}).then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 4s
+    restart: unless-stopped
+
+  deployer:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: secure_vault_deployer
+    environment:
+      - RPC_URL=http://blockchain:8545
+    depends_on:
+      blockchain:
+        condition: service_healthy
+    volumes:
+      - ./:/output
+    restart: "no"
